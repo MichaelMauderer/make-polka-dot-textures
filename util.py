@@ -103,7 +103,8 @@ def iter_dots(n, distance, allowed_misses=10000, verbose=False):
         return great_circle_distance(p1, p2) < distance
 
     while len(dots) < n and misses < allowed_misses:
-        print('Dots:', len(dots), ', Misses:', misses)
+        if verbose:
+            print('Dots:', len(dots), ', Misses:', misses)
         latitude = (random.random() * 2 - 1) * np.pi / 2
         longitude = (random.random() * 2 - 1) * np.pi
         candidate = latitude, longitude
