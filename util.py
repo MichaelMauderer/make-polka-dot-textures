@@ -74,7 +74,7 @@ def cylindric_to_spheric(height, angle):
     return latitude, longitude
 
 
-class iter_random_dots_base():
+class _iter_random_dots_base():
     """
     Yields up to n coordinates of points with the minimal
     given distance to all other points.
@@ -94,9 +94,9 @@ class iter_random_dots_base():
     -------
     Point as tuple
     """
-    
+
     __metaclass__ = ABCMeta
-    
+
     def __init__(self, n, min_distance, allowed_misses=10000, verbose=False):
         self.n = n
         self.min_distance = min_distance
@@ -104,33 +104,33 @@ class iter_random_dots_base():
         self.verbose = verbose
         self.dots = []
         self.misses = 0
-        
+
     @abstractmethod
     def point_distance(self, p1, p2):
         return None
-   
+
     @abstractmethod
     def create_random_point(self):
         return None
-        
+
     def __iter__(self):
         return self
-    
+
     def __next__(self):
         while len(self.dots) < self.n and self.misses < self.allowed_misses:
             if self.verbose:
-                print('Dots:', len(dots), ' Misses:', misses)
+                print('Dots:', len(self.dots), ' Misses:', self.misses)
             candidate = self.create_random_point()
             if any([self.point_distance(dot, candidate)for dot in self.dots]):
                 self.misses += 1
-                continue    
+                continue
             self.dots.append(candidate)
             self.misses = 0
             return candidate
         raise  StopIteration
 
 
-class iter_dots_on_sphere(iter_random_dots_base):
+class iter_dots_on_sphere(_iter_random_dots_base):
     """
     Yields up to n coordinates of points on a unitsphere each with the minimal
     given distance to all other points.
@@ -155,14 +155,14 @@ class iter_dots_on_sphere(iter_random_dots_base):
     """
     def point_distance(self, p1, p2):
         return great_circle_distance(p1, p2) < self.min_distance
-    
+
     def create_random_point(self):
         latitude = (random.random() * 2 - 1) * np.pi / 2
         longitude = (random.random() * 2 - 1) * np.pi
         return latitude, longitude
-        
-        
-def iter_dots_on_plane(iter_random_dots_base):
+
+
+class iter_dots_on_plane(_iter_random_dots_base):
     """
     Yields up to n coordinates of points on a unitplane each with the minimal
     given distance to any other point.
@@ -186,7 +186,7 @@ def iter_dots_on_plane(iter_random_dots_base):
     y : y-coordinate in range 0..1
     """
     def point_distance(self, p1, p2):
-        didtance = abs(np.linalg.norm(p1 - p2))
+        distance = abs(np.linalg.norm(p1 - p2))
         return distance < self.min_distance
 
     def create_random_point(self):
