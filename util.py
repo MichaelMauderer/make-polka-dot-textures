@@ -185,11 +185,21 @@ class iter_dots_on_plane(_iter_random_dots_base):
     x : x-coordinate in range 0..1.
     y : y-coordinate in range 0..1
     """
+
+    def __init__(self, *args, border_distance=0, **kwargs):
+        _iter_random_dots_base.__init__(self, *args, **kwargs)
+        self.border_distance = border_distance
+
     def point_distance(self, p1, p2):
-        distance = abs(np.linalg.norm(p1 - p2))
-        return distance < self.min_distance
+        x1, y1 = p1
+        x2, y2 = p2
+        distance = np.sqrt(((x1 - x2) ** 2) + (y1 - y2) ** 2)
+        return abs(distance) < self.min_distance
+
+    def _randm_in_center(self):
+        return random.random() * (1 - 2 * self.border_distance) + self.border_distance
 
     def create_random_point(self):
-        x = random.random()
-        y = random.random()
+        x = self._randm_in_center()
+        y = self._randm_in_center()
         return x, y
