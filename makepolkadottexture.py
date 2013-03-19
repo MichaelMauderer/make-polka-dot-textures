@@ -49,7 +49,7 @@ spherical_points = util.cylindric_to_spheric(height_grid, angle_grid)
 # Compute distances to each randomly generated point on the sphere
 # Keep the minimal distance for each pixel
 #------------------------------------------------------------------------------
-dots = util.iter_dots(dot_n, dot_min_distance)
+dots = util.iter_dots_on_sphere(dot_n, dot_min_distance)
 min_distances = util.great_circle_distance(spherical_points, next(dots))
 for dot in dots:
     distances = util.great_circle_distance(spherical_points, dot)

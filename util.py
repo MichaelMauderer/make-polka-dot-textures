@@ -22,6 +22,7 @@
 #******************************************************************************
 import numpy as np
 import random
+from abc import ABCMeta, abstractmethod
 
 
 def great_circle_distance(standpoint, forepoint):
@@ -73,7 +74,63 @@ def cylindric_to_spheric(height, angle):
     return latitude, longitude
 
 
-def iter_dots(n, distance, allowed_misses=10000, verbose=False):
+class iter_random_dots_base():
+    """
+    Yields up to n coordinates of points with the minimal
+    given distance to all other points.
+    Since the used algorithm may not guarantee termination a upper limit
+    for attempts to generate a valid point is given. If this limit is reached
+    the iterator will stop prematurely.
+
+    Parameters
+    ----------
+    n : Maximum number of dots to create
+    min_distance : Minimal distance between any points.
+    allowed_misses : upper limit for attempts to generate a valid point.
+    verbose: If True will print current state of the algorithm.
+             Amount of created dots, amount of current misses.
+
+    Returns
+    -------
+    Point as tuple
+    """
+    
+    __metaclass__ = ABCMeta
+    
+    def __init__(self, n, min_distance, allowed_misses=10000, verbose=False):
+        self.n = n
+        self.min_distance = min_distance
+        self.allowed_misses = allowed_misses
+        self.verbose = verbose
+        self.dots = []
+        self.misses = 0
+        
+    @abstractmethod
+    def point_distance(self, p1, p2):
+        return None
+   
+    @abstractmethod
+    def create_random_point(self):
+        return None
+        
+    def __iter__(self):
+        return self
+    
+    def __next__(self):
+        while len(self.dots) < self.n and self.misses < self.allowed_misses:
+            if self.verbose:
+                print('Dots:', len(dots), ' Misses:', misses)
+            candidate = self.create_random_point()
+            if any([self.point_distance(dot, candidate)for dot in self.dots]):
+                self.misses += 1
+                continue    
+            self.dots.append(candidate)
+            self.misses = 0
+            return candidate
+        raise  StopIteration
+
+
+class iter_dots_on_sphere(iter_random_dots_base):
     """
     Yields up to n coordinates of points on a unitsphere each with the minimal
     given distance to all other points.
@@ -96,21 +153,43 @@ def iter_dots(n, distance, allowed_misses=10000, verbose=False):
     latitude : Latitude between -pi and pi.
     longitude : Longitude between -pi/2 and pi/2
     """
-    misses = 0
-    dots = []
-
-    def distance_okay(p1, p2):
-        return great_circle_distance(p1, p2) < distance
-
-    while len(dots) < n and misses < allowed_misses:
-        if verbose:
-            print('Dots:', len(dots), ', Misses:', misses)
+    def point_distance(self, p1, p2):
+        return great_circle_distance(p1, p2) < self.min_distance
+    
+    def create_random_point(self):
         latitude = (random.random() * 2 - 1) * np.pi / 2
         longitude = (random.random() * 2 - 1) * np.pi
-        candidate = latitude, longitude
-        if any([distance_okay(dot, candidate)for dot in dots]):
-            misses += 1
-            continue    
-        dots.append(candidate)
-        misses = 0
-        yield candidate
+        return latitude, longitude
+        
+        
+def iter_dots_on_plane(iter_random_dots_base):
+    """
+    Yields up to n coordinates of points on a unitplane each with the minimal
+    given distance to any other point.
+    Since the used algorithm does not guarantee termination a upper limit
+    for attempts to generate a valid point is given. If this limit is reached
+    the iterator will stop prematurely.
+
+    Parameters
+    ----------
+    n : Maximum number of dots to create
+    min_distance : Minimal distance between all points.
+    allowed_misses : upper limit for attempts to generate a valid point.
+    verbose: If True will print current state of the algorithm.
+             Amount of created dots, amount of current misses.
+
+    Returns
+    -------
+    Point as tuple of the following values:
+
+    x : x-coordinate in range 0..1.
+    y : y-coordinate in range 0..1
+    """
+    def point_distance(self, p1, p2):
+        didtance = abs(np.linalg.norm(p1 - p2))
+        return distance < self.min_distance
+
+    def create_random_point(self):
+        x = random.random()
+        y = random.random()
+        return x, y
