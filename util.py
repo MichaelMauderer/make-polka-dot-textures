@@ -23,6 +23,7 @@
 import numpy as np
 import random
 from abc import ABCMeta, abstractmethod
+import logging
 
 
 def great_circle_distance(standpoint, forepoint):
@@ -85,7 +86,6 @@ class _iter_random_dots_base():
     Parameters
     ----------
     n : Maximum number of dots to create
-    min_distance : Minimal distance between any points.
     allowed_misses : upper limit for attempts to generate a valid point.
     verbose: If True will print current state of the algorithm.
              Amount of created dots, amount of current misses.
@@ -97,16 +97,15 @@ class _iter_random_dots_base():
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, n, min_distance, allowed_misses=10000, verbose=False):
+    def __init__(self, n, allowed_misses=10000, verbose=False):
         self.n = n
-        self.min_distance = min_distance
         self.allowed_misses = allowed_misses
         self.verbose = verbose
         self.dots = []
         self.misses = 0
 
     @abstractmethod
-    def point_distance(self, p1, p2):
+    def point_distance_valid(self, p1, p2):
         return None
 
     @abstractmethod
@@ -117,11 +116,17 @@ class _iter_random_dots_base():
         return self
 
     def __next__(self):
-        while len(self.dots) < self.n and self.misses < self.allowed_misses:
+        while len(self.dots) < self.n:
+            if self.misses >= self.allowed_misses:
+                warning = 'Dot iteration was aborted. ' \
+                          'Only {n} points have been created'
+                logging.warning(warning.format(n=len(self.dots))
+                                )
+                raise StopIteration
             if self.verbose:
                 print('Dots:', len(self.dots), ' Misses:', self.misses)
             candidate = self.create_random_point()
-            if any([self.point_distance(dot, candidate)for dot in self.dots]):
+            if any([self.point_distance_valid(dot, candidate) for dot in self.dots]):
                 self.misses += 1
                 continue
             self.dots.append(candidate)
@@ -153,7 +158,11 @@ class iter_dots_on_sphere(_iter_random_dots_base):
     latitude : Latitude between -pi and pi.
     longitude : Longitude between -pi/2 and pi/2
     """
-    def point_distance(self, p1, p2):
+    def __init__(self, min_distance, *args, **kwargs):
+        _iter_random_dots_base.__init__(self, *args, **kwargs)
+        self.min_distance = min_distance
+
+    def point_distance_valid(self, p1, p2):
         return great_circle_distance(p1, p2) < self.min_distance
 
     def create_random_point(self):
@@ -172,8 +181,10 @@ class iter_dots_on_plane(_iter_random_dots_base):
 
     Parameters
     ----------
-    n : Maximum number of dots to create
-    min_distance : Minimal distance between all points.
+    radii : List containing the radii of all dots that should be created
+    border_distance : Minimal distance between points and edge of texture.
+    dot_distance_factor: Factor that radii will be multiplied with before
+                         checking if two dots are far enough apart.
     allowed_misses : upper limit for attempts to generate a valid point.
     verbose: If True will print current state of the algorithm.
              Amount of created dots, amount of current misses.
@@ -186,20 +197,24 @@ class iter_dots_on_plane(_iter_random_dots_base):
     y : y-coordinate in range 0..1
     """
 
-    def __init__(self, *args, border_distance=0, **kwargs):
-        _iter_random_dots_base.__init__(self, *args, **kwargs)
+    def __init__(self, radii, border_distance=0, dot_distance_factor=1, *args, **kwargs):
+        _iter_random_dots_base.__init__(self, n=len(radii), **kwargs)
         self.border_distance = border_distance
+        self.dot_distance_factor = dot_distance_factor
+        self.radii = sorted(radii, reverse=True)
+        #random.shuffle(self.radii)
 
-    def point_distance(self, p1, p2):
-        x1, y1 = p1
-        x2, y2 = p2
+    def point_distance_valid(self, p1, p2):
+        x1, y1, r1 = p1
+        x2, y2, r2 = p2
+        min_distance = (r1 + r2) * self.dot_distance_factor
         distance = np.sqrt(((x1 - x2) ** 2) + (y1 - y2) ** 2)
-        return abs(distance) < self.min_distance
+        return abs(distance) < min_distance
 
-    def _randm_in_center(self):
+    def _rand_in_center(self):
         return random.random() * (1 - 2 * self.border_distance) + self.border_distance
 
     def create_random_point(self):
-        x = self._randm_in_center()
-        y = self._randm_in_center()
-        return x, y
+        x = self._rand_in_center()
+        y = self._rand_in_center()
+        return x, y, self.radii[len(self.dots)]

@@ -26,26 +26,24 @@ import util
 #-----------------------------------------------------------------------------
 # Script parameters
 #------------------------------------------------------------------------------
-dot_r = 0.05
+
+dot_radii = [0.10] * 10 + [0.05] * 10
 max_dot_n = 100
-dot_min_distance = 2.5 * dot_r
-border_distance = dot_r
+border_distance = max(dot_radii) * 1.5
 image_size = 1024, 1024
 image_filename = 'texture.png'
-
 
 #------------------------------------------------------------------------------
 # Save the array to an image
 #------------------------------------------------------------------------------
 image = Image.new('RGB', image_size, (255, 255, 255))
 draw = ImageDraw.Draw(image)
-dot_iter = util.iter_dots_on_plane(max_dot_n, dot_min_distance,
-                                  border_distance=border_distance)
+dot_iter = util.iter_dots_on_plane(dot_radii, border_distance, 1.05)
 for dot in dot_iter:
-    x, y = dot
-    x_left = (x - dot_r) * image_size[0]
-    x_right = (x + dot_r) * image_size[0]
-    y_upper = (y - dot_r) * image_size[1]
-    y_lower = (y + dot_r) * image_size[1]
+    x, y, r = dot
+    x_left = (x - r) * image_size[0]
+    x_right = (x + r) * image_size[0]
+    y_upper = (y - r) * image_size[1]
+    y_lower = (y + r) * image_size[1]
     draw.ellipse((x_left, y_upper, x_right, y_lower), fill=(0, 0, 0))
 image.save(image_filename)
