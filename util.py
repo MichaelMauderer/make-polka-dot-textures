@@ -121,7 +121,7 @@ class _iter_random_dots_base():
                 warning = 'Dot iteration was aborted. ' \
                           'Only {n} points have been created'
                 logging.warning(warning.format(n=len(self.dots))
-                                )
+                )
                 raise StopIteration
             if self.verbose:
                 print('Dots:', len(self.dots), ' Misses:', self.misses)
@@ -132,7 +132,7 @@ class _iter_random_dots_base():
             self.dots.append(candidate)
             self.misses = 0
             return candidate
-        raise  StopIteration
+        raise StopIteration
 
 
 class iter_dots_on_sphere(_iter_random_dots_base):
@@ -158,6 +158,7 @@ class iter_dots_on_sphere(_iter_random_dots_base):
     latitude : Latitude between -pi and pi.
     longitude : Longitude between -pi/2 and pi/2
     """
+
     def __init__(self, min_distance, *args, **kwargs):
         _iter_random_dots_base.__init__(self, *args, **kwargs)
         self.min_distance = min_distance
@@ -218,3 +219,46 @@ class iter_dots_on_plane(_iter_random_dots_base):
         x = self._rand_in_center()
         y = self._rand_in_center()
         return x, y, self.radii[len(self.dots)]
+
+
+class iter_dots_in_polygon(iter_dots_on_plane):
+    """
+    Yields up to n coordinates of points on a unitpolygon (all corrdinates between 0 and 1) each with the minimal
+    given distance to any other point.
+    Since the used algorithm does not guarantee termination a upper limit
+    for attempts to generate a valid point is given. If this limit is reached
+    the iterator will stop prematurely.
+
+    Parameters
+    ----------
+    polygon: List of points that describe the polygon
+    radii : List containing the radii of all dots that should be created
+    border_distance : Minimal distance between points and edge of texture.
+    dot_distance_factor: Factor that radii will be multiplied with before
+                         checking if two dots are far enough apart.
+    allowed_misses : upper limit for attempts to generate a valid point.
+    verbose: If True will print current state of the algorithm.
+             Amount of created dots, amount of current misses.
+
+    Returns
+    -------
+    Point as tuple of the following values:
+
+    x : x-coordinate in range 0..1.
+    y : y-coordinate in range 0..1
+    """
+
+    def __init__(self, polygon, *args, **kwargs):
+        iter_dots_on_plane.__init__(self, *args, **kwargs)
+        self.polygon = polygon
+
+    def create_random_point(self):
+        r = self.radii[len(self.dots)]
+
+        import Polygon
+        polygon = Polygon.Polygon(self.polygon)
+        scale = (0.5 - r) / 0.5
+        polygon.scale(scale, scale, 0.5, 0.5)
+        x, y = polygon.sample(random.random)
+
+        return x, y, r
